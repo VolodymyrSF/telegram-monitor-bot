@@ -10,7 +10,7 @@ async function start() {
     try {
         await authorizeTelegram();
         startMonitoring();
-        console.log('Бот авторизувався, їбаш далі команди:');
+        console.log('Бот авторизувався і очікує команди:');
         startCLI();
     } catch (err) {
         console.error('Блядь, не вдалося авторизуватись:', err.message);

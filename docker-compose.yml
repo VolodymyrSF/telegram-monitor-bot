@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  telegram-monitor-bot:
+    build: .
+    container_name: telegram_monitor_bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs

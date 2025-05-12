@@ -3,6 +3,7 @@ import { readConfig } from './storage.js'
 import { decrypt } from './encryption.js'
 import dotenv from 'dotenv'
 dotenv.config()
+import moment from 'moment-timezone';
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -15,11 +16,14 @@ const transporter = nodemailer.createTransport({
 })
 
 async function sendNotificationEmail({ chatTitle, message, timestamp, keywords }) {
+    const localTime = moment.utc(timestamp).tz('Europe/Kiev');
+    const formattedLocalTime = localTime.format('YYYY-MM-DD HH:mm:ss');
+
     const mailOptions = {
         from: `"Telegram Monitor" <${process.env.SMTP_EMAIL}>`,
         to: process.env.SMTP_TO,
         subject: `Ключове слово ${keywords.join(', ')} в чаті: ${chatTitle}`,
-        text: `Час: ${timestamp}
+        text: `Час: ${formattedLocalTime}
 Чат: ${chatTitle}
 Ключові слова: ${keywords.join(', ')}
 Повідомлення:

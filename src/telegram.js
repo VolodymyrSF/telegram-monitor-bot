@@ -89,82 +89,12 @@ async function startMonitoring() {
         console.log(`- ${chat.title} (ID: ${chat.id})`);
     }
 
-    /*
-    // Слухаємо нові повідомлення
     client.addEventHandler(async (event) => {
         const message = event.message;
         const chatId = message.chatId?.toString();
         const text = message.text || message.message || '';
 
-        if (!chatId || !text) return;
-
-        // Перевіряємо, чи потрібно відстежувати цей чат
-        const trackedChatIds = config.chats.map(c => c.id.toString());
-        if (!trackedChatIds.includes(chatId)) {
-            return;
-        }
-
-        // Оновлюємо статистику
-        config.stats.messages += 1;
-
-        // Перевіряємо ключові слова
-        const foundKeywords = config.keywords.filter(kw =>
-          text.toLowerCase().includes(kw.toLowerCase())
-        );
-
-        if (foundKeywords.length > 0) {
-            config.stats.matches += 1;
-
-            try {
-                // Отримуємо інформацію про чат
-                const chat = config.chats.find(c => c.id.toString() === chatId);
-
-                // Отримуємо інформацію про відправника
-                let senderName = 'Невідомий';
-                if (message.sender) {
-                    const sender = await message.getSender();
-                    senderName = sender.firstName + (sender.lastName ? ` ${sender.lastName}` : '');
-                }
-
-                // Отримуємо інформацію про чат, якщо назва невідома
-                let chatTitle = chat?.title;
-                if (!chatTitle) {
-                    try {
-                        const entity = await client.getEntity(message.peerId);
-                        chatTitle = entity.title || entity.firstName || `ID: ${chatId}`;
-                    } catch (err) {
-                        chatTitle = `ID: ${chatId}`;
-                    }
-                }
-
-                // Надсилаємо сповіщення по email
-                await sendNotificationEmail({
-                    chatTitle,
-                    message: text,
-                    timestamp: new Date().toISOString(),
-                    keywords: foundKeywords,
-                    sender: senderName
-                });
-
-                config.stats.emails += 1;
-            } catch (err) {
-                console.error('Не вдалося надіслати повідомлення:', err.message);
-                await sendErrorEmail(err);
-            }
-        }
-
-        // Зберігаємо оновлену конфігурацію
-        writeConfig(config);
-    }, new NewMessage({}));
-
-     */
-
-    client.addEventHandler(async (event) => {
-        const message = event.message;
-        const chatId = message.chatId?.toString();
-        const text = message.text || message.message || '';
-
-        console.log(`Отримано повідомлення з чату ${chatId}: "${text}"`); // Додано логування
+        console.log(`Отримано повідомлення з чату ${chatId}`);
 
         if (!chatId || !text) return;
 
@@ -179,10 +109,15 @@ async function startMonitoring() {
 
         config.stats.messages += 1;
 
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
         const foundKeywords = config.keywords.filter(kw =>
-          text.toLowerCase().includes(kw.toLowerCase())
+          new RegExp(`\\b${escapeRegex(kw)}\\b`, 'i').test(text)
         );
-        console.log('Знайдені ключові слова:', foundKeywords); // Додано логування
+
+        console.log('Знайдені ключові слова:', foundKeywords);
 
         if (foundKeywords.length > 0) {
             config.stats.matches += 1;

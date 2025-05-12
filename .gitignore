@@ -1,4 +1,12 @@
 .env
 sessions/
 logs/
-config/config.json
+# Ігнорувати все в папці config
+config/*
+
+# Але не ігнорувати саму папку config
+!config/.gitkeep
+
+node_modules
+session.txt
+
