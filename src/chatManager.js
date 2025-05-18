@@ -3,8 +3,6 @@ import { client } from './telegram.js'
 import { Api } from 'telegram'
 import { logError, logInfo, logWarn } from './logger.js'
 
-
-
 const resolvedCache = new Map();
 
 async function retry(fn, attempts = 3, delay = 2000) {
