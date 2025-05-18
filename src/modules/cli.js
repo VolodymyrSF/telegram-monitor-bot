@@ -15,9 +15,13 @@ import {
     removeWordFromGroup,
     listWordsInGroup
 } from './wordManager.js'
-import { getStats,resetStats } from './statManager.js'
-import { setEnvVariable } from './envManager.js'
-import { readConfig, writeConfig } from './storage.js'
+
+import nodemailer from 'nodemailer'
+import { setEnvVariable } from '../utils/envManager.js'
+import { readConfig, writeConfig } from '../utils/storage.js'
+import { clearQueue, readQueue } from '../queue.js'
+import { getStats, resetStats } from './statManager.js'
+
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -38,6 +42,8 @@ function displayHelp() {
     console.log('/listwords <група> - Показати список ключових слів у групі');
     console.log('/setgroupemail <група> <email> - Встановити email для групи');
     console.log('/removegroupemail <група> <email> - Видалити email для групи');
+    console.log('/showqueue - показати чергу ненадісланих повідомлень')
+    console.log('/retryfailed - перезапуск надсилання повідомлень(враховуючи чергу ненадісланих)')
     console.log('/listAll - Показати всі групи з чатами');
     console.log('/stats - Показати статистику за сесію');
     console.log('/help - Показати цю довідку');
@@ -148,6 +154,43 @@ async function handleCommand(line) {
                 }
 
                 break
+            }
+
+            case '/showqueue': {
+                const items = await readQueue()
+                console.log(`🗂️ У черзі ${items.length} повідомлень`);
+                items.forEach((item, idx) => {
+                    console.log(`--- #${idx + 1} ---`)
+                    console.log(`To: ${item.to}`)
+                    console.log(`Subject: ${item.subject}`)
+                    console.log(`Text: ${item.text}`)
+                });
+                break;
+            }
+
+            case '/retryfailed': {
+                const items = await readQueue()
+                const transporter = nodemailer.createTransport({
+                    host: process.env.SMTP_HOST,
+                    port: Number(process.env.SMTP_PORT),
+                    secure: false,
+                    auth: {
+                        user: process.env.SMTP_EMAIL,
+                        pass: process.env.SMTP_PASSWORD
+                    }
+                })
+
+                for (const item of items) {
+                    try {
+                        await transporter.sendMail(item)
+                        console.log(`✅ Відправлено повторно: ${item.subject}`)
+                    } catch (e) {
+                        console.log(`❌ Не вдалось відправити: ${item.subject}`, e.message)
+                    }
+                }
+
+                await clearQueue()
+                break;
             }
 
             case '/listAll':{

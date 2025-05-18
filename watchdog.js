@@ -1,12 +1,12 @@
 import { exec, spawn } from 'child_process';
 import { config } from 'dotenv'
-import { sendErrorEmail } from './src/email.js'
-import { client } from './src/telegram.js'
+import { sendErrorEmail } from './src/email/email.js'
+import { client } from './src/telegram/telegram.js'
 
 config()
 
 import nodemailer from 'nodemailer'
-import { decrypt } from './src/encryption.js'
+import { decrypt } from './src/utils/encryption.js'
 
 const log = (msg) => console.log(`[WATCHDOG]: ${msg}`)
 
@@ -36,16 +36,29 @@ transporter.verify(async function (error, success) {
 function startBot() {
   const child = spawn('node', ['index.js']);
 
-
-  child.stdout.pipe(process.stdout); // Просто перенаправляємо stdout бота на stdout watchdog
-  child.stderr.on('data', async (data) => {
-    log(`stderr: ${data}`);
-    await handleError(`Помилка бота: ${data}`);
-  });
+  child.stdout.pipe(process.stdout);
 
   child.stderr.on('data', async (data) => {
-    log(`stderr: ${data}`);
-    await handleError(`Помилка бота: ${data}`);
+    const msg = data.toString();
+    log(`stderr: ${msg}`);
+
+    // Ігнорувати некритичні помилки
+    const isNonFatal = [
+      'punycode',
+      'warning',
+      'deprecated',
+      'ExperimentalWarning',
+      '[User is already connected!]',
+      '🔁 Спроба reconnect #1...',
+      '🔁 Спроба reconnect #2...',
+      '🔁 Спроба reconnect #3...',
+      '🔁 Спроба reconnect #4...',
+      '🔁 Спроба reconnect #5...'
+    ].some(keyword => msg.toLowerCase().includes(keyword.toLowerCase()));
+
+    if (!isNonFatal) {
+      await handleError(`Критична помилка бота: ${msg}`);
+    }
   });
 
   child.on('close', async (code) => {

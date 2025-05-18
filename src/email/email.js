@@ -1,9 +1,10 @@
 import nodemailer from 'nodemailer'
-import { readConfig } from './storage.js'
-import { decrypt } from './encryption.js'
 import dotenv from 'dotenv'
 
 import moment from 'moment-timezone';
+import { decrypt } from '../utils/encryption.js'
+import { readConfig } from '../utils/storage.js'
+import { pushToQueue } from '../queue.js'
 
 dotenv.config()
 const transporter = nodemailer.createTransport({
@@ -85,6 +86,7 @@ async function sendNotificationEmail({ chatTitle,chatUsername, message, timestam
         )
     } catch (e) {
         console.error(`❌ Помилка надсилання email до ${recipientList}:`, e)
+        await pushToQueue(mailOptions)
         await sendErrorEmail(e)
     }
 }

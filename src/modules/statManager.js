@@ -1,4 +1,4 @@
-import { readConfig, writeConfig} from './storage.js'
+import { readConfig, writeConfig} from '../utils/storage.js'
 import chalk from 'chalk'
 
 async function getStats() {

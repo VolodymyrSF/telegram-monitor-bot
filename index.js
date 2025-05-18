@@ -1,10 +1,11 @@
 import { config } from 'dotenv';
 config(); // Викликаємо config() одразу на початку
 
-import { sendErrorEmail } from './src/email.js'
+import { sendErrorEmail } from './src/email/email.js'
 
-import { authorizeTelegram, startMonitoring } from './src/telegram.js';
-import { startCLI } from './src/cli.js';
+import { authorizeTelegram, startMonitoring } from './src/telegram/telegram.js';
+import { startCLI } from './src/modules/cli.js';
+import { startBotManager} from './src/telegram/telebot.js'
 
 
 async function start() {
@@ -49,5 +50,9 @@ process.on('unhandledRejection', async (reason, promise) => {
     await sendErrorEmail(reason)
     process.exit(1)
 })
+
+if (process.env.TELEGRAM_BOT_TOKEN) {
+    startBotManager()
+}
 
 start();

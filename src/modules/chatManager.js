@@ -1,7 +1,7 @@
-import { readConfig, writeConfig } from './storage.js'
-import { client } from './telegram.js'
 import { Api } from 'telegram'
-import { logError, logInfo, logWarn } from './logger.js'
+import { logError, logInfo, logWarn } from '../logger/logger.js'
+import { client } from '../telegram/telegram.js'
+import { readConfig, writeConfig } from '../utils/storage.js'
 
 const resolvedCache = new Map();
 
@@ -194,46 +194,55 @@ async function deleteGroup(groupName) {
 
 async function listGroups() {
     const config = await readConfig();
+    let output = '';
 
     if (!config.groups || config.groups.length === 0) {
-        console.log("ℹ️ Жодної групи не знайдено.");
-        return;
+        return 'ℹ️ Жодної групи не знайдено.';
     }
 
     for (const group of config.groups) {
         console.log(`📦 Група: ${group.name}`);
+        output += `📦 Група: ${group.name}\n`;
 
-        // === Чати
         if (Array.isArray(group.chats) && group.chats.length > 0) {
             console.log("   📢 Канали:");
+            output += "   📢 Канали:\n";
             for (const chat of group.chats) {
                 console.log(`     📢 ${chat.title || chat.username || chat.id}`);
+                output += `     📢 ${chat.title || chat.username || chat.id}\n`;
             }
         } else {
             console.log("   📢 Канали: —");
+            output += "   📢 Канали: —\n";
         }
 
-        // === Email'и
         const emails = group.email
           ? group.email.split(",").map(e => e.trim()).filter(Boolean)
           : [];
         if (emails.length > 0) {
             console.log(`   📧 Email'и: ${emails.join(", ")}`);
+            output += `   📧 Email'и: ${emails.join(", ")}\n`;
         } else {
             console.log("   📧 Email'и: —");
+            output += "   📧 Email'и: —\n";
         }
 
-        // === Ключові слова
         const keywords = Array.isArray(group.keywords) ? group.keywords : [];
         if (keywords.length > 0) {
             console.log(`   📝 Ключові слова: ${keywords.join(", ")}`);
+            output += `   📝 Ключові слова: ${keywords.join(", ")}\n`;
         } else {
             console.log("   📝 Ключові слова: —");
+            output += "   📝 Ключові слова: —\n";
         }
-
         console.log("—".repeat(40));
+        output += "————————————————————————————————————————\n";
     }
+
+    return output;
 }
+
+
 
 async function setGroupEmail(groupName, email) {
     const config = await readConfig()

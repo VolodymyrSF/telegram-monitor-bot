@@ -1,16 +1,18 @@
+
 import { TelegramClient } from 'telegram'
-import { StringSession } from 'telegram/sessions/index.js'
-import { NewMessage } from 'telegram/events/index.js'
+
 import input from 'input'
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { sendNotificationEmail, sendErrorEmail } from './email.js'
-import { readConfig, writeConfig } from './storage.js'
+import { sendNotificationEmail, sendErrorEmail } from '../email/email.js'
+import { readConfig, writeConfig } from '../utils/storage.js'
+import { StringSession } from 'telegram/sessions/index.js'
+import { NewMessage } from 'telegram/events/index.js'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const SESSION_FILE_PATH = path.join(__dirname, '../session.txt');
+const SESSION_FILE_PATH = path.join(__dirname, '../../session.txt');
 
 let stringSession = new StringSession('');
 try {
@@ -146,10 +148,10 @@ async function startMonitoring() {
 
     setInterval(async () => {
         if (Date.now() - lastEventTime > 120000) {
-            console.warn('🕳️ Підозріло довго нема евентів... Підключення могло здохнути');
+            console.log('🕳️ Підозріло довго нема евентів... Підключення могло здохнути');
             await reconnectTelegram();
         }
-    }, 60000);
+    }, 3600000);
 
     console.log('🟢 Моніторинг запущено!');
 }

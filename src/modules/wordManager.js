@@ -1,4 +1,4 @@
-import { readConfig, writeConfig } from './storage.js'
+import { readConfig, writeConfig } from '../utils/storage.js'
 
 async function addWordToGroup(groupName, word) {
     if (!word || typeof word !== 'string') {

@@ -5,8 +5,9 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const configPath = path.resolve(__dirname, '../config/config.json')
-const backupPath = path.resolve(__dirname, '../config/config.bak.json')
+const configPath = path.resolve(__dirname, '../../config/config.json')
+const backupPath = path.resolve(__dirname, '../../config/config.bak.json')
+
 
 async function initStorage() {
     try {
