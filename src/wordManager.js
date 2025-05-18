@@ -1,30 +1,48 @@
 import { readConfig, writeConfig } from './storage.js'
 
-function addWord(word) {
-    if (!word || typeof word !== 'string') throw new Error('Слово має бути текстом')
-    const config = readConfig()
+async function addWordToGroup(groupName, word) {
+    if (!word || typeof word !== 'string') {
+        throw new Error('Слово має бути текстом')
+    }
 
-    if (config.keywords.includes(word.toLowerCase())) throw new Error('Слово вже є')
+    const config = await readConfig()
+    const group = config.groups.find(g => g.name === groupName)
+    if (!group) throw new Error(`Група "${groupName}" не знайдена`)
 
-    config.keywords.push(word.toLowerCase())
-    writeConfig(config)
+    if (!group.keywords) group.keywords = []
+
+    if (group.keywords.includes(word.toLowerCase())) {
+        throw new Error(`Слово "${word}" вже є у групі "${groupName}"`)
+    }
+
+    group.keywords.push(word.toLowerCase())
+    await writeConfig(config)
     return word.toLowerCase()
 }
 
-function removeWord(word) {
-    const config = readConfig()
-    const index = config.keywords.indexOf(word.toLowerCase())
+async function removeWordFromGroup(groupName, word) {
+    const config = await readConfig()
+    const group = config.groups.find(g => g.name === groupName)
+    if (!group) throw new Error(`Група "${groupName}" не знайдена`)
 
-    if (index === -1) throw new Error('Слово не знайдено')
+    const index = group.keywords.indexOf(word.toLowerCase())
+    if (index === -1) {
+        throw new Error(`Слово "${word}" не знайдено у групі "${groupName}"`)
+    }
 
-    const removed = config.keywords.splice(index, 1)
-    writeConfig(config)
-    return removed[0]
+    group.keywords.splice(index, 1)
+    await writeConfig(config)
+    return word.toLowerCase()
 }
 
-function listWords() {
-    const config = readConfig()
-    return config.keywords
+async function listWordsInGroup(groupName) {
+    const config = await readConfig()
+    const group = config.groups.find(g => g.name === groupName)
+    if (!group) throw new Error(`Група "${groupName}" не знайдена`)
+
+    return group.keywords || []
 }
 
-export { addWord, removeWord, listWords }
+
+
+export { addWordToGroup, removeWordFromGroup, listWordsInGroup}

@@ -1,8 +1,15 @@
-import { readConfig } from './storage.js'
+import { readConfig, writeConfig} from './storage.js'
 import chalk from 'chalk'
 
-function getStats() {
-    const { stats } = readConfig()
+async function getStats() {
+    const config = await readConfig()
+
+    if (!config.stats) {
+        config.stats = { messages: 0, emails: 0, matches: 0 }
+        await writeConfig(config)
+    }
+
+    const stats = config.stats || { messages: 0, emails: 0, matches: 0 }
 
     console.log(chalk.yellow.bold('\nСтатистика за сесію:'))
     console.log(chalk.green(`Оброблених повідомлень:`), stats.messages)
@@ -11,4 +18,14 @@ function getStats() {
     console.log('')
 }
 
-export { getStats }
+async function resetStats() {
+    const config = await readConfig()
+    config.stats = {
+        messages: 0,
+        emails: 0,
+        matches: 0
+    }
+    await writeConfig(config)
+}
+
+export { getStats,resetStats }

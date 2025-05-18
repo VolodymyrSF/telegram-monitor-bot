@@ -1,5 +1,4 @@
-version: '3.8'
-
+version: '3'
 services:
   telegram-monitor-bot:
     build: .
@@ -8,4 +7,11 @@ services:
     env_file:
       - .env
     volumes:
+      - ./config:/app/config
+      - ./session.txt:/app/session.txt
       - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('fs').existsSync('./session.txt')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
