@@ -7,6 +7,9 @@ import { authorizeTelegram, startMonitoring } from './src/telegram/telegram.js';
 import { startCLI } from './src/modules/cli.js';
 import { startBotManager} from './src/telegram/telebot.js'
 
+import cron from 'node-cron'
+import { sendDailyDigest } from './src/digestSender.js'
+
 
 async function start() {
     try {
@@ -29,6 +32,10 @@ async function start() {
             console.log('💬 Запуск CLI');
             startCLI();
             console.log('🎉 Все системи активні');
+            cron.schedule('0 5 * * *', async () => {
+                console.log('📬 Час хуярити щоденний дайджест');
+                await sendDailyDigest()
+            });
         }, 100);
 
         // console.log('🎉 Все системи активні'); // Видаліть цей рядок
@@ -50,9 +57,11 @@ process.on('unhandledRejection', async (reason, promise) => {
     await sendErrorEmail(reason)
     process.exit(1)
 })
-
+  /*
 if (process.env.TELEGRAM_BOT_TOKEN) {
     startBotManager()
 }
+
+   */
 
 start();

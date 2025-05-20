@@ -8,6 +8,8 @@ import {
     listGroups,
     setGroupEmail,
     clearGroupEmail,
+    addTelegramRecipientToGroup,
+    removeTelegramRecipientFromGroup,
     listAll
 } from './chatManager.js'
 import {
@@ -16,11 +18,15 @@ import {
     listWordsInGroup
 } from './wordManager.js'
 
+
+
 import nodemailer from 'nodemailer'
 import { setEnvVariable } from '../utils/envManager.js'
 import { readConfig, writeConfig } from '../utils/storage.js'
-import { clearQueue, readQueue } from '../queue.js'
+import { clearQueue, readQueue } from '../queue/queue.js'
 import { getStats, resetStats } from './statManager.js'
+import { decrypt } from '../utils/encryption.js'
+import fs from 'fs/promises'
 
 
 const rl = readline.createInterface({
@@ -42,8 +48,11 @@ function displayHelp() {
     console.log('/listwords <група> - Показати список ключових слів у групі');
     console.log('/setgroupemail <група> <email> - Встановити email для групи');
     console.log('/removegroupemail <група> <email> - Видалити email для групи');
-    console.log('/showqueue - показати чергу ненадісланих повідомлень')
-    console.log('/retryfailed - перезапуск надсилання повідомлень(враховуючи чергу ненадісланих)')
+    console.log('/addtgrecipient <група> <@username або userId> - Додати TG-отримувача до групи');
+    console.log('/removetgrecipient <група> <@username або userId> - Видалити TG-отримувача з групи');
+    console.log('/listtgrecipients - Показати список TG-отримувачів по групах');
+    console.log('/showqueue - Показати чергу ненадісланих повідомлень');
+    console.log('/retryfailed - Перезапуск надсилання повідомлень із черги');
     console.log('/listAll - Показати всі групи з чатами');
     console.log('/stats - Показати статистику за сесію');
     console.log('/help - Показати цю довідку');
@@ -170,15 +179,23 @@ async function handleCommand(line) {
 
             case '/retryfailed': {
                 const items = await readQueue()
+
+                if (!items.length) {
+                    console.log('📭 У черзі немає нічого для повторної відправки');
+                    break;
+                }
+
                 const transporter = nodemailer.createTransport({
                     host: process.env.SMTP_HOST,
                     port: Number(process.env.SMTP_PORT),
                     secure: false,
                     auth: {
                         user: process.env.SMTP_EMAIL,
-                        pass: process.env.SMTP_PASSWORD
+                        pass: decrypt(process.env.SMTP_PASSWORD)
                     }
-                })
+                });
+
+                const failed = []
 
                 for (const item of items) {
                     try {
@@ -186,11 +203,45 @@ async function handleCommand(line) {
                         console.log(`✅ Відправлено повторно: ${item.subject}`)
                     } catch (e) {
                         console.log(`❌ Не вдалось відправити: ${item.subject}`, e.message)
+                        failed.push(item)
                     }
                 }
 
-                await clearQueue()
+                if (failed.length) {
+                    console.log(`🔁 Залишилось ${failed.length} невдалих, повертаю в чергу...`)
+                    await fs.writeFile('./queue/errors.json', JSON.stringify(failed, null, 2), 'utf8')
+                } else {
+                    await clearQueue()
+                    console.log('🧹 Чергу повністю очищено')
+                }
+
                 break;
+            }
+            case '/addtgrecipient':
+                if (args.length < 2) return console.log('Вкажи групу і @username або userId.')
+                await addTelegramRecipientToGroup(args[0], args[1])
+                console.log(`🟢 Додано Telegram-отримувача "${args[1]}" до групи "${args[0]}"`)
+                break
+
+            case '/removetgrecipient':
+                if (args.length < 2) return console.log('Вкажи групу і @username або userId.')
+                await removeTelegramRecipientFromGroup(args[0], args[1])
+                console.log(`🔴 Видалено Telegram-отримувача "${args[1]}" з групи "${args[0]}"`)
+                break
+
+
+            case '/listtgrecipients': {
+                const recipientsByGroup = await listTelegramRecipients()
+                if (recipientsByGroup.length === 0) {
+                    console.log('❌ У жодній групі немає Telegram-отримувачів.')
+                } else {
+                    for (const { group, recipients } of recipientsByGroup) {
+                        console.log(`📦 Група "${group}":`)
+                        recipients.forEach((r, i) => console.log(`  ${i + 1}. ${r}`))
+                        console.log('')
+                    }
+                }
+                break
             }
 
             case '/listAll':{

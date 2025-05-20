@@ -279,6 +279,56 @@ async function clearGroupEmail(groupName, emailToRemove) {
     await writeConfig(config)
     return true
 }
+
+async function addTelegramRecipientToGroup(groupName, recipient) {
+    const config = await readConfig()
+    const group = config.groups.find(g => g.name === groupName)
+    if (!group) throw new Error(`Група "${groupName}" не знайдена`)
+
+    if (!group.telegramRecipients) group.telegramRecipients = []
+
+    if (group.telegramRecipients.includes(recipient)) {
+        throw new Error(`Отримувач "${recipient}" вже доданий до групи "${groupName}"`)
+    }
+
+    group.telegramRecipients.push(recipient)
+    await writeConfig(config)
+    return recipient
+}
+
+async function removeTelegramRecipientFromGroup(groupName, recipient) {
+    const config = await readConfig()
+    const group = config.groups.find(g => g.name === groupName)
+    if (!group) throw new Error(`Група "${groupName}" не знайдена`)
+
+    if (!group.telegramRecipients || !group.telegramRecipients.includes(recipient)) {
+        throw new Error(`Отримувача "${recipient}" не знайдено в групі "${groupName}"`)
+    }
+
+    group.telegramRecipients = group.telegramRecipients.filter(r => r !== recipient)
+    await writeConfig(config)
+    return recipient
+}
+
+async function listTelegramRecipients() {
+    try {
+        const config = await readConfig();
+        console.log('📋 Список одержувачів Telegram по групах:\n');
+
+        for (const group of config.groups) {
+            if (Array.isArray(group.telegramRecipients) && group.telegramRecipients.length) {
+                console.log(`🔸 Група: ${group.name}`);
+                group.telegramRecipients.forEach((recipient, i) => {
+                    console.log(`   ${i + 1}. ${recipient}`);
+                });
+                console.log('');
+            }
+        }
+    } catch (err) {
+        console.error('❌ Не вдалося прочитати одержувачів:', err.message);
+    }
+}
+
 async function listAll() {
     const config = await readConfig();
 
@@ -361,5 +411,8 @@ export {
     listGroups,
     setGroupEmail,
     clearGroupEmail,
+    addTelegramRecipientToGroup,
+    removeTelegramRecipientFromGroup,
+    listTelegramRecipients,
     listAll
 }

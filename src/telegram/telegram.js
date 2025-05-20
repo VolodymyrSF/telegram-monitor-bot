@@ -9,6 +9,7 @@ import { sendNotificationEmail, sendErrorEmail } from '../email/email.js'
 import { readConfig, writeConfig } from '../utils/storage.js'
 import { StringSession } from 'telegram/sessions/index.js'
 import { NewMessage } from 'telegram/events/index.js'
+import { addToDigestQueue } from '../queue/digestQueue.js'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,6 +63,28 @@ async function authorizeTelegram() {
         throw error;
     }
 }
+function escapeHtml(text) {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+}
+
+async function sendTelegramMessage(recipients, text) {
+    await Promise.all(
+      recipients.map(recipient =>
+        client.sendMessage(recipient, {
+            message: text,
+            parseMode: 'html' // ✅ нижній регістр
+        }).catch(err =>
+          console.error(`❌ Не вдалося надіслати повідомлення ${recipient}:`, err.message)
+        )
+      )
+    )
+}
+
+
 
 async function startMonitoring() {
     const config = await readConfig()
@@ -89,11 +112,22 @@ async function startMonitoring() {
 
                 config.stats.messages += 1
 
+                console.log(`💬 Перевіряємо повідомлення: "${text}"`);
+
                 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
                 for (const group of relevantGroups) {
-                    const foundKeywords = group.keywords?.filter(kw =>
-                      new RegExp(`\\b${escapeRegex(kw)}\\b`, 'i').test(text)
-                    ) || []
+                    console.log(`🔍 Шукаємо ключові:`, group.keywords);
+
+                    const foundKeywords = group.keywords?.filter(kw => {
+                        const pattern = `(^|[^\\w])${escapeRegex(kw)}([^\\w]|$)`
+                        const regex = new RegExp(pattern, 'i')
+                        const match = regex.test(text)
+                        if (match) {
+                            console.log(`🎯 Знайдено ключ: "${kw}" в тексті`);
+                        }
+                        return match
+                    }) || []
 
                     if (foundKeywords.length) {
                         config.stats.matches += 1
@@ -105,23 +139,47 @@ async function startMonitoring() {
                             const chat = group.chats.find(c => c.id.toString() === chatId)
                             const chatTitle = chat?.title || `ID: ${chatId}`
 
-                            const recipient = process.env[`GROUP_EMAIL_${group.name.toUpperCase()}`] || process.env.SMTP_TO
+                            await addToDigestQueue({
+                                groupName: group.name,
+                                chatTitle,
+                                message: text,
+                                timestamp: new Date().toISOString(),
+                                keywords: foundKeywords,
+                                chatId,
+                                messageId: message.id,
+                                sender: senderName,
+                                chatUsername: chat?.username || message.chat?.username
+                            })
 
-                            if (recipient) {
-                                await sendNotificationEmail({
-                                    chatTitle,
-                                    message: text,
-                                    timestamp: new Date().toISOString(),
-                                    keywords: foundKeywords,
-                                    chatId,
-                                    messageId: message.id,
-                                    sender: senderName,
-                                    recipient
-                                })
-                                config.stats.emails += 1
+                            if (group.telegramRecipients && group.telegramRecipients.length) {
+                                const chatUsername = chat?.username || message.chat?.username
+                                const chatLink = chatUsername ? `https://t.me/${chatUsername}/${message.id}` : null
+                                const isPrivateLink = !chatUsername
+
+                                const localTime = new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' })
+                                const escapedText = escapeHtml(text).replace(/\n/g, '<br>')
+                                const escapedTitle = escapeHtml(chatTitle)
+                                const escapedKeywords = escapeHtml(foundKeywords.join(', '))
+                                const escapedSender = escapeHtml(senderName)
+
+                                const alertMessage =
+                                  `<b>⚠️ Нове повідомлення у чаті:</b> ${escapedTitle}<br><br>` +
+
+                                  `<b>🕒 Час:</b> ${localTime}<br><br>` +
+
+                                  `<b>🔑 Ключові слова:</b> ${escapedKeywords}<br><br><br>` +
+
+                                  `<b>💬 Повідомлення:</b><br>${escapedText}<br><br>` +
+
+                                  (chatLink ? `🔗 <a href="${chatLink}">Перейти до повідомлення</a><br><br>` : '') +
+                                  (isPrivateLink ? `⚠️ <i>Посилання працює лише у Telegram, якщо ви учасник чату.</i>` : '')
+
+                                console.log('📤 Надсилаю повідомлення в Telegram:', alertMessage)
+                                await sendTelegramMessage(group.telegramRecipients, alertMessage)
                             }
+
                         } catch (err) {
-                            console.error('📨 Не вдалося надіслати повідомлення:', err.message)
+                            console.error('📥 Не вдалося додати в чергу або надіслати TG:', err.message)
                             await sendErrorEmail(err)
                         }
                     }

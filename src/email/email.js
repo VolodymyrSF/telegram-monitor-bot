@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import moment from 'moment-timezone';
 import { decrypt } from '../utils/encryption.js'
 import { readConfig } from '../utils/storage.js'
-import { pushToQueue } from '../queue.js'
+import { pushToQueue } from '../queue/queue.js'
 
 dotenv.config()
 const transporter = nodemailer.createTransport({
