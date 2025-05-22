@@ -19,11 +19,11 @@ const transporter = nodemailer.createTransport({
 
 function groupBy(arr, keyFn) {
   return arr.reduce((acc, item) => {
-    const key = keyFn(item);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
+    const key = keyFn(item)
+    if (!acc[key]) acc[key] = []
+    acc[key].push(item)
+    return acc
+  }, {})
 }
 
 function escapeHtml(text) {
@@ -59,14 +59,14 @@ export async function sendDailyDigest() {
           ? `https://t.me/${msg.chatUsername}/${msg.messageId}`
           : `https://t.me/c/${msg.chatId.replace('-100', '')}/${msg.messageId}`
         return `
-                <hr>
-                <p><b>Чат:</b> ${escapeHtml(msg.chatTitle)}</p>
-                <p><b>Ключові слова:</b> ${escapeHtml(msg.keywords.join(', '))}</p>
-                <p><b>Відправник:</b> ${escapeHtml(msg.sender)}</p>
-                <p><b>Час:</b> ${time}</p>
-                <p>${escapeHtml(msg.message).replace(/\n/g, '<br>')}</p>
-                <p><a href="${link}">Перейти до повідомлення</a></p>
-                `
+          <hr>
+          <p><b>Чат:</b> ${escapeHtml(msg.chatTitle)}</p>
+          <p><b>Ключові слова:</b> ${escapeHtml(msg.keywords.join(', '))}</p>
+          <p><b>Відправник:</b> ${escapeHtml(msg.sender)}</p>
+          <p><b>Час:</b> ${time}</p>
+          <p>${escapeHtml(msg.message).replace(/\n/g, '<br>')}</p>
+          <p><a href="${link}">Перейти до повідомлення</a></p>
+        `
       }).join('\n')
 
       const mailOptions = {

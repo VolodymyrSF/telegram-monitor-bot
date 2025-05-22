@@ -1,5 +1,10 @@
 import fs from 'fs/promises';
-const QUEUE_PATH = './queue/errors.json';
+import { fileURLToPath } from 'url'
+import path from 'path'
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const QUEUE_PATH = path.join(__dirname, '../../src/queue//errors.json');
 
 export async function pushToQueue(item) {
   try {

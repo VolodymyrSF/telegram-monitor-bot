@@ -63,14 +63,33 @@ async function authorizeTelegram() {
         throw error;
     }
 }
-function escapeHtml(text) {
+function escapeMarkdownV2(text) {
     return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+      .replace(/_/g, '\\_')
+      .replace(/\*/g, '\\*')
+      .replace(/\[/g, '\\[')
+      .replace(/]/g, '\\]')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)')
+      .replace(/~/g, '\\~')
+      .replace(/`/g, '\\`')
+      .replace(/>/g, '\\>')
+      .replace(/#/g, '\\#')
+      .replace(/\+/g, '\\+')
+      .replace(/-/g, '\\-')
+      .replace(/=/g, '\\=')
+      .replace(/\|/g, '\\|')
+      .replace(/{/g, '\\{')
+      .replace(/}/g, '\\}')
+      .replace(/\./g, '\\.')
+      .replace(/!/g, '\\!');
 }
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/*
 async function sendTelegramMessage(recipients, text) {
     await Promise.all(
       recipients.map(recipient =>
@@ -84,6 +103,29 @@ async function sendTelegramMessage(recipients, text) {
     )
 }
 
+ */
+async function sendTelegramMessage(recipients, text) {
+    for (const recipient of recipients) {
+        try {
+            await client.sendMessage(recipient, {
+                message: text,
+                parseMode: 'html'
+            });
+            await sleep(1000); // 1 секунда між повідомленнями
+        } catch (err) {
+            console.error(`❌ Не вдалося надіслати повідомлення ${recipient}:`, err.message);
+
+            if (err.message.includes('A wait of')) {
+                const match = err.message.match(/A wait of (\d+) seconds/);
+                if (match && match[1]) {
+                    const waitTime = parseInt(match[1], 10) * 1000;
+                    console.warn(`⏳ Telegram каже “Почекай ${waitTime / 1000} сек” — чекаємо...`);
+                    await sleep(waitTime + 1000);
+                }
+            }
+        }
+    }
+}
 
 
 async function startMonitoring() {
@@ -152,27 +194,23 @@ async function startMonitoring() {
                             })
 
                             if (group.telegramRecipients && group.telegramRecipients.length) {
-                                const chatUsername = chat?.username || message.chat?.username
-                                const chatLink = chatUsername ? `https://t.me/${chatUsername}/${message.id}` : null
-                                const isPrivateLink = !chatUsername
+                                const chatUsername = chat?.username || message.chat?.username;
+                                const chatLink = chatUsername ? `https://t.me/${chatUsername}/${message.id}` : null;
+                                const isPrivateLink = !chatUsername;
 
-                                const localTime = new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' })
-                                const escapedText = escapeHtml(text).replace(/\n/g, '<br>')
-                                const escapedTitle = escapeHtml(chatTitle)
-                                const escapedKeywords = escapeHtml(foundKeywords.join(', '))
-                                const escapedSender = escapeHtml(senderName)
+                                const localTime = new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' });
+                                const escapedText = escapeMarkdownV2(text);
+                                const escapedTitle = escapeMarkdownV2(chatTitle);
+                                const escapedKeywords = escapeMarkdownV2(foundKeywords.join(', '));
+                                const escapedSender = escapeMarkdownV2(senderName || 'Невідомий користувач');
 
                                 const alertMessage =
-                                  `<b>⚠️ Нове повідомлення у чаті:</b> ${escapedTitle}<br><br>` +
-
-                                  `<b>🕒 Час:</b> ${localTime}<br><br>` +
-
-                                  `<b>🔑 Ключові слова:</b> ${escapedKeywords}<br><br><br>` +
-
-                                  `<b>💬 Повідомлення:</b><br>${escapedText}<br><br>` +
-
-                                  (chatLink ? `🔗 <a href="${chatLink}">Перейти до повідомлення</a><br><br>` : '') +
-                                  (isPrivateLink ? `⚠️ <i>Посилання працює лише у Telegram, якщо ви учасник чату.</i>` : '')
+                                  `*⚠️ Нове повідомлення у чаті:* ${escapedTitle}\n\n` +
+                                  `*🕒 Час:* ${localTime}\n\n` +
+                                  `*🔑 Ключові слова:* ${escapedKeywords}\n\n` +
+                                  `*💬 Повідомлення:*\n${escapedText}\n\n` +
+                                  (chatLink ? `🔗 [Перейти до повідомлення](${chatLink})\n\n` : '') +
+                                  (isPrivateLink ? `⚠️ _Посилання працює лише у Telegram, якщо ви учасник чату._` : '');
 
                                 console.log('📤 Надсилаю повідомлення в Telegram:', alertMessage)
                                 await sendTelegramMessage(group.telegramRecipients, alertMessage)

@@ -1,7 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url'
 
-const DIGEST_PATH = path.join(process.cwd(), 'queue', 'daily_digest.json');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DIGEST_PATH = path.join(__dirname, '../../src/queue/daily_digest.json');
+
 
 async function ensureDirectoryExists(filePath) {
   const dir = path.dirname(filePath);
@@ -32,6 +36,7 @@ export async function addToDigestQueue(item) {
       data.push(item);
       await fs.writeFile(DIGEST_PATH, JSON.stringify(data, null, 2), 'utf8');
       console.log(`📥 Додано в digest: ${item.chatTitle} (${item.messageId})`);
+      console.log('🧭 Digest path:', DIGEST_PATH)
     } else {
       console.log(`⚠️ Дубль. Пропускаємо: ${item.chatTitle} (${item.messageId})`);
     }

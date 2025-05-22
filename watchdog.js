@@ -32,41 +32,65 @@ transporter.verify(async function (error, success) {
   }
 })
 
+function isRecoverableTelegramError(msg) {
+  const patterns = [
+    'timeout',
+    'not connected',
+    'disconnected',
+    'handling reconnect',
+    'connection closed',
+    'recv',
+    'reconnecting',
+    'wait of',
+    'rate limit',
+    'too many requests',
+    'invalid time value',
+    'rangeerror'
+  ]
+  return patterns.some(p => msg.toLowerCase().includes(p))
+}
+
+function isNonFatalWarning(msg) {
+  const patterns = [
+    'punycode',
+    'deprecated',
+    'experimentalwarning',
+    'warning:',
+    '[user is already connected!]',
+    'reconnect #'
+  ]
+  return patterns.some(p => msg.toLowerCase().includes(p))
+}
+
 // Запуск бота
 function startBot() {
-  const child = spawn('node', ['index.js']);
+  const child = spawn('node', ['index.js'])
 
-  child.stdout.pipe(process.stdout);
+  child.stdout.pipe(process.stdout)
 
   child.stderr.on('data', async (data) => {
-    const msg = data.toString();
-    log(`stderr: ${msg}`);
+    const msg = data.toString()
+    log(`stderr: ${msg}`)
 
-    // Ігнорувати некритичні помилки
-    const isNonFatal = [
-      'punycode',
-      'warning',
-      'deprecated',
-      'ExperimentalWarning',
-      '[User is already connected!]',
-      '🔁 Спроба reconnect #1...',
-      '🔁 Спроба reconnect #2...',
-      '🔁 Спроба reconnect #3...',
-      '🔁 Спроба reconnect #4...',
-      '🔁 Спроба reconnect #5...'
-    ].some(keyword => msg.toLowerCase().includes(keyword.toLowerCase()));
-
-    if (!isNonFatal) {
-      await handleError(`Критична помилка бота: ${msg}`);
+    if (isNonFatalWarning(msg)) {
+      log('ℹ️ Некритична хуйня. Пропускаємо.')
+      return
     }
-  });
+
+    if (isRecoverableTelegramError(msg)) {
+      log('🔁 Telegram лагає, але бот сам підніметься.')
+      return
+    }
+
+    // Якщо сюди дійшли — це щось серйозне
+    await handleError(`Критична помилка бота:\n\n${msg}`)
+  })
 
   child.on('close', async (code) => {
-    await handleError(`Бот завершився з кодом ${code}`);
-  });
+    await handleError(`Бот завершився з кодом ${code}`)
+  })
 
-  // Передача введення з батьківського процесу до дочірнього
-  process.stdin.pipe(child.stdin);
+  process.stdin.pipe(child.stdin)
 }
 
 async function handleError(msg) {
